@@ -1,0 +1,88 @@
+/* discord-magic F1 — liquid glass + jelly (P1).
+ * Pure CSS overlay: classes are attached by payload/mod.js via
+ * MutationObserver. Stable attribute hooks only — NO hardcoded hashed
+ * class names (hashes rotate per web build). Never restructures React
+ * subtrees; backdrop-filter + borders + glow only. */
+
+:root {
+  --dm-glass-blur: 18px;
+  --dm-glass-sat: 160%;
+  --dm-glass-tint: rgba(20, 24, 38, 0.42);
+  --dm-glass-edge-hi: rgba(255, 255, 255, 0.35);
+  --dm-glass-edge-lo: rgba(120, 160, 255, 0.18);
+  --dm-glass-glow: 0 8px 32px rgba(80, 120, 255, 0.16);
+  --dm-jelly-ease: cubic-bezier(0.34, 1.8, 0.5, 0.9); /* spring-ish overshoot */
+}
+
+/* ---- the three stable surfaces -------------------------------------- */
+/* 1. channel list */
+.dm-glass[data-list-id="guild-channels"],
+nav.dm-glass[aria-label="Channels"] {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.07), var(--dm-glass-tint)) !important;
+  -webkit-backdrop-filter: blur(var(--dm-glass-blur)) saturate(var(--dm-glass-sat)) !important;
+  backdrop-filter: blur(var(--dm-glass-blur)) saturate(var(--dm-glass-sat)) !important;
+  border: 1px solid transparent !important;
+  border-image: linear-gradient(135deg, var(--dm-glass-edge-hi), var(--dm-glass-edge-lo)) 1 !important;
+  box-shadow: var(--dm-glass-glow) !important;
+  border-radius: 14px !important;
+}
+
+/* 2. chat / message list */
+.dm-glass[data-list-id="chat-messages"],
+.dm-glass[role="log"] {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(16, 20, 34, 0.38)) !important;
+  -webkit-backdrop-filter: blur(var(--dm-glass-blur)) saturate(var(--dm-glass-sat)) !important;
+  backdrop-filter: blur(var(--dm-glass-blur)) saturate(var(--dm-glass-sat)) !important;
+  border: 1px solid transparent !important;
+  border-image: linear-gradient(160deg, var(--dm-glass-edge-hi), var(--dm-glass-edge-lo)) 1 !important;
+  box-shadow: var(--dm-glass-glow) !important;
+  border-radius: 14px !important;
+}
+
+/* 3. member list */
+.dm-glass[data-list-id="members"],
+.dm-glass[aria-label="Members"] {
+  background: linear-gradient(200deg, rgba(255, 255, 255, 0.06), var(--dm-glass-tint)) !important;
+  -webkit-backdrop-filter: blur(var(--dm-glass-blur)) saturate(var(--dm-glass-sat)) !important;
+  backdrop-filter: blur(var(--dm-glass-blur)) saturate(var(--dm-glass-sat)) !important;
+  border: 1px solid transparent !important;
+  border-image: linear-gradient(200deg, var(--dm-glass-edge-hi), var(--dm-glass-edge-lo)) 1 !important;
+  box-shadow: var(--dm-glass-glow) !important;
+  border-radius: 14px !important;
+}
+
+/* rows inside any surface: subtle glass chip */
+.dm-glass-row {
+  background: rgba(255, 255, 255, 0.04) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(140%) !important;
+  backdrop-filter: blur(10px) saturate(140%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  border-radius: 10px !important;
+}
+
+/* ---- jelly: squash on press, spring-ish release ---------------------- */
+.dm-jelly {
+  transition: transform 0.45s var(--dm-jelly-ease) !important;
+  transform-origin: center center !important;
+  will-change: transform !important;
+}
+
+.dm-jelly:active {
+  transform: scale(0.94, 0.88) !important; /* squash */
+  transition-duration: 0.08s !important;
+  transition-timing-function: ease-out !important;
+}
+
+/* gentle hover lift (transform/opacity only — no layout writes) */
+.dm-glass-row:hover {
+  transform: scale(1.015) !important;
+}
+
+/* accessibility: calm the jelly when the user prefers less motion */
+@media (prefers-reduced-motion: reduce) {
+  .dm-jelly,
+  .dm-glass-row {
+    transition: none !important;
+    transform: none !important;
+  }
+}

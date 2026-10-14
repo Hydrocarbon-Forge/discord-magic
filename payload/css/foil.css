@@ -1,0 +1,94 @@
+/* discord-magic F2 — holographic foil 3D-tilt cards (P1).
+ * payload/mod.js wraps each `.positionedLayer__*` / `positionLayer__*`
+ * popout root in .dm-foil-stage > .dm-foil-tilt (+ .dm-foil-sheen overlay).
+ * The original node is untouched (reparented one level only, no child edits).
+ * Tilt is driven by mousemove via --dm-rx / --dm-ry (clamped to <=~12deg in
+ * JS); the sheen position follows --dm-foil-x / --dm-foil-y. */
+
+:root {
+  --dm-rx: 0deg;
+  --dm-ry: 0deg;
+  --dm-foil-x: 50%;
+  --dm-foil-y: 50%;
+  --dm-tilt-ease: cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+/* perspective stage: establishes the 3D space, takes the root's place */
+.dm-foil-stage {
+  perspective: 900px !important;
+  perspective-origin: center center !important;
+  display: inline-block !important;
+}
+
+/* tilt body: the only transformed element (transform/opacity only) */
+.dm-foil-tilt {
+  position: relative !important;
+  transform-style: preserve-3d !important;
+  transform: rotateX(var(--dm-rx, 0deg)) rotateY(var(--dm-ry, 0deg)) !important;
+  transition: transform 0.35s var(--dm-tilt-ease) !important;
+  will-change: transform !important;
+  border-radius: 16px !important;
+}
+
+/* iridescent foil layer: conic rainbow, color-dodge blend, cursor-tracked */
+.dm-foil-sheen {
+  position: absolute !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  border-radius: inherit !important;
+  background: conic-gradient(
+    from 210deg at var(--dm-foil-x, 50%) var(--dm-foil-y, 50%),
+    #ff9de2,
+    #ffd76e,
+    #9dffb0,
+    #7ecbff,
+    #c49bff,
+    #ff9de2
+  ) !important;
+  background-position: var(--dm-foil-x, 50%) var(--dm-foil-y, 50%) !important;
+  background-size: 220% 220% !important;
+  mix-blend-mode: color-dodge !important;
+  opacity: 0.55 !important;
+  filter: saturate(150%) brightness(1.1) !important;
+}
+
+/* soft holographic edge glow on the tilted card */
+.dm-foil-tilt::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: -1px !important;
+  border-radius: inherit !important;
+  pointer-events: none !important;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.5),
+    rgba(255, 255, 255, 0) 30%,
+    rgba(126, 203, 255, 0.25) 70%,
+    rgba(255, 157, 226, 0.4)
+  ) !important;
+  mix-blend-mode: screen !important;
+}
+
+/* "metal etching" text: clipped gradient fill + bevel shadow stack */
+.dm-etch {
+  background: linear-gradient(180deg, #ffffff 20%, #b9c4d8 48%, #5d6880 50%, #e8eef7 80%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.55),
+    0 -1px 0 rgba(0, 0, 0, 0.65),
+    1px 0 0 rgba(255, 255, 255, 0.25),
+    -1px 0 0 rgba(0, 0, 0, 0.35) !important;
+}
+
+/* accessibility: no tilt/sheen motion when the user prefers less motion */
+@media (prefers-reduced-motion: reduce) {
+  .dm-foil-tilt {
+    transform: none !important;
+    transition: none !important;
+  }
+  .dm-foil-sheen {
+    display: none !important;
+  }
+}
