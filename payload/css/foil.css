@@ -48,7 +48,7 @@
   background-position: var(--dm-foil-x, 50%) var(--dm-foil-y, 50%) !important;
   background-size: 220% 220% !important;
   mix-blend-mode: color-dodge !important;
-  opacity: 0.55 !important;
+  opacity: 0.45 !important;
   filter: saturate(150%) brightness(1.1) !important;
 }
 

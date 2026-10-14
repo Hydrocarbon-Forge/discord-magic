@@ -79,8 +79,37 @@
     '[aria-label="Members"]',
   ];
 
+  // Guarded class-add: skip when already present so a sweep never writes
+  // (a no-op set can still queue an attribute record in some DOMs and
+  // ping-pong the observer forever).
+  function addClass(el, cls) {
+    try {
+      if (!el.classList.contains(cls)) el.classList.add(cls);
+    } catch (e) {}
+  }
+
+  // Mark a single element if it IS a surface/row (querySelectorAll only
+  // covers descendants, never the root itself).
+  function markGlassSelf(el) {
+    if (!el || typeof el.matches !== 'function') return;
+    try {
+      for (var i = 0; i < GLASS_SURFACES.length; i++) {
+        if (el.matches(GLASS_SURFACES[i])) {
+          addClass(el, 'dm-glass');
+          break;
+        }
+      }
+      if (el.matches('[data-list-item-id]')) {
+        addClass(el, 'dm-glass-row');
+        addClass(el, 'dm-jelly');
+      }
+    } catch (e) {}
+  }
+
   function applyGlass(root) {
     var scope = root && root.querySelectorAll ? root : document;
+    // The added node itself may BE the surface/row (not just a container).
+    markGlassSelf(scope);
     var i, els;
     for (i = 0; i < GLASS_SURFACES.length; i++) {
       try {
@@ -88,7 +117,7 @@
       } catch (e) {
         continue;
       }
-      for (var k = 0; k < els.length; k++) els[k].classList.add('dm-glass');
+      for (var k = 0; k < els.length; k++) addClass(els[k], 'dm-glass');
     }
     // Rows: the stable member/voice/channel row hook.
     try {
@@ -97,7 +126,8 @@
       els = [];
     }
     for (var j = 0; j < els.length; j++) {
-      els[j].classList.add('dm-glass-row', 'dm-jelly');
+      addClass(els[j], 'dm-glass-row');
+      addClass(els[j], 'dm-jelly');
     }
   }
 
@@ -141,7 +171,7 @@
       var names = root.querySelectorAll(
         'h1,h2,h3,h4,[class*="username"],[class*="nickname"],[class*="displayName"],[class*="heading"]'
       );
-      for (var i = 0; i < names.length; i++) names[i].classList.add('dm-etch');
+      for (var i = 0; i < names.length; i++) addClass(names[i], 'dm-etch');
     } catch (e) {
       // text treatment is cosmetic; never fail the wrap
     }
@@ -187,17 +217,23 @@
 
   function scanLayers(root) {
     var scope = root && root.querySelectorAll ? root : document;
-    if (scope !== document && isLayerNode(scope)) wrapPopout(scope);
+    var candidates = [];
+    // The added node itself may BE the layer (wrap its card child, never
+    // the layer container — the layer is React-positioned).
+    if (scope !== document && isLayerNode(scope) && scope.firstElementChild) {
+      candidates.push(scope.firstElementChild);
+    }
     var els;
     try {
       els = scope.querySelectorAll('[class*="positionedLayer"],[class*="positionLayer"]');
     } catch (e) {
-      return;
+      els = [];
     }
     for (var i = 0; i < els.length; i++) {
       // Only wrap layers that actually host a popout card child.
-      if (els[i].firstElementChild) wrapPopout(els[i].firstElementChild);
+      if (els[i].firstElementChild) candidates.push(els[i].firstElementChild);
     }
+    for (var j = 0; j < candidates.length; j++) wrapPopout(candidates[j]);
   }
 
   /* 6. Observers (SPA-safe re-attach) ------------------------------------ */

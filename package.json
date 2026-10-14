@@ -1,0 +1,12 @@
+{
+  "name": "discord-magic",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Discord desktop client-side visual mods (P1: loader + glass + foil)",
+  "scripts": {
+    "test:p1": "node test/run_fixture_test.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.3"
+  }
+}
