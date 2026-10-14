@@ -1,16 +1,25 @@
-/* discord-magic F2 — holographic foil 3D-tilt cards (P1).
- * payload/mod.js wraps each `.positionedLayer__*` / `positionLayer__*`
- * popout root in .dm-foil-stage > .dm-foil-tilt (+ .dm-foil-sheen overlay).
+/* discord-magic F2 — holographic foil 3D-tilt cards (W2: Liquid Glass edition).
+ * payload/mod.js wraps each profile/account/user popout CARD
+ * ([class*="profilePopout"] / "accountPopout" / "userPopout", found inside
+ * positionLayer/positionedLayer/popoutLayer hosts OR mounted directly as in
+ * profile modals) in .dm-foil-stage > .dm-foil-tilt (+ .dm-foil-sheen).
  * The original node is untouched (reparented one level only, no child edits).
  * Tilt is driven by mousemove via --dm-rx / --dm-ry (clamped to <=~12deg in
- * JS); the sheen position follows --dm-foil-x / --dm-foil-y. */
+ * JS); the sheen position follows --dm-foil-x / --dm-foil-y. Paint-only
+ * properties (transform / opacity / box-shadow / backdrop-filter). */
+
+@property --dm-foil-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
 
 :root {
   --dm-rx: 0deg;
   --dm-ry: 0deg;
   --dm-foil-x: 50%;
   --dm-foil-y: 50%;
-  --dm-tilt-ease: cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  --dm-tilt-ease: cubic-bezier(0.3, 1.1, 0.4, 1);
 }
 
 /* perspective stage: establishes the 3D space, takes the root's place */
@@ -27,59 +36,87 @@
   transform: rotateX(var(--dm-rx, 0deg)) rotateY(var(--dm-ry, 0deg)) !important;
   transition: transform 0.35s var(--dm-tilt-ease) !important;
   will-change: transform !important;
-  border-radius: 16px !important;
+  border-radius: 20px !important;
+  /* liquid rim: frosted edge + deep halo so the card reads as glass */
+  -webkit-backdrop-filter: blur(18px) saturate(180%) !important;
+  backdrop-filter: blur(18px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.45) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -16px 32px rgba(90, 130, 255, 0.16),
+    0 0 0 1px rgba(10, 16, 36, 0.3),
+    0 18px 60px rgba(80, 120, 255, 0.3),
+    0 0 32px rgba(150, 120, 255, 0.22) !important;
 }
 
-/* iridescent foil layer: conic rainbow, color-dodge blend, cursor-tracked */
+/* iridescent foil layer: wide-hue conic sweep, color-dodge blend.
+ * Slow @property-driven rotation (ambient shimmer) + cursor tracking via
+ * --dm-foil-x/--dm-foil-y (JS positions background-position directly too,
+ * so tracking works even where var-driven positions aren't computed). */
 .dm-foil-sheen {
   position: absolute !important;
   inset: 0 !important;
   pointer-events: none !important;
   border-radius: inherit !important;
   background: conic-gradient(
-    from 210deg at var(--dm-foil-x, 50%) var(--dm-foil-y, 50%),
-    #ff9de2,
+    from var(--dm-foil-angle, 0deg) at var(--dm-foil-x, 50%) var(--dm-foil-y, 50%),
+    #ff5fc8,
     #ffd76e,
-    #9dffb0,
-    #7ecbff,
-    #c49bff,
-    #ff9de2
+    #8dffb0,
+    #6ec6ff,
+    #b49bff,
+    #ff7ee2,
+    #ff5fc8
   ) !important;
   background-position: var(--dm-foil-x, 50%) var(--dm-foil-y, 50%) !important;
-  background-size: 220% 220% !important;
+  background-size: 280% 280% !important;
   mix-blend-mode: color-dodge !important;
-  opacity: 0.45 !important;
-  filter: saturate(150%) brightness(1.1) !important;
+  opacity: 0.65 !important;
+  filter: saturate(170%) brightness(1.15) !important;
+  animation: dm-foil-spin 9s linear infinite !important;
 }
 
-/* soft holographic edge glow on the tilted card */
+@keyframes dm-foil-spin {
+  to {
+    --dm-foil-angle: 360deg;
+  }
+}
+
+/* holographic rim glow on the tilted card — shifts with tilt */
 .dm-foil-tilt::after {
   content: "" !important;
   position: absolute !important;
-  inset: -1px !important;
+  inset: -2px !important;
   border-radius: inherit !important;
   pointer-events: none !important;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.5),
-    rgba(255, 255, 255, 0) 30%,
-    rgba(126, 203, 255, 0.25) 70%,
-    rgba(255, 157, 226, 0.4)
+  padding: 2px !important;
+  background: conic-gradient(
+    from var(--dm-foil-angle, 0deg) at var(--dm-foil-x, 50%) var(--dm-foil-y, 50%),
+    rgba(255, 255, 255, 0.85),
+    rgba(255, 95, 200, 0.55),
+    rgba(126, 203, 255, 0.55),
+    rgba(196, 155, 255, 0.55),
+    rgba(255, 255, 255, 0.85)
   ) !important;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0) !important;
+  -webkit-mask-composite: xor !important;
+  mask-composite: exclude !important;
   mix-blend-mode: screen !important;
+  opacity: 0.9 !important;
 }
 
-/* "metal etching" text: clipped gradient fill + bevel shadow stack */
+/* "metal etching" text: brighter clipped gradient + deeper bevel stack */
 .dm-etch {
-  background: linear-gradient(180deg, #ffffff 20%, #b9c4d8 48%, #5d6880 50%, #e8eef7 80%) !important;
+  background: linear-gradient(180deg, #ffffff 15%, #cdd8ec 45%, #4d5872 50%, #f2f6fc 82%) !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
   color: transparent !important;
   text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.55),
-    0 -1px 0 rgba(0, 0, 0, 0.65),
-    1px 0 0 rgba(255, 255, 255, 0.25),
-    -1px 0 0 rgba(0, 0, 0, 0.35) !important;
+    0 1px 0 rgba(255, 255, 255, 0.7),
+    0 -1px 1px rgba(0, 0, 0, 0.7),
+    1px 0 0 rgba(255, 255, 255, 0.3),
+    -1px 0 0 rgba(0, 0, 0, 0.4),
+    0 0 18px rgba(150, 180, 255, 0.45) !important;
 }
 
 /* accessibility: no tilt/sheen motion when the user prefers less motion */
@@ -89,6 +126,10 @@
     transition: none !important;
   }
   .dm-foil-sheen {
+    display: none !important;
+    animation: none !important;
+  }
+  .dm-foil-tilt::after {
     display: none !important;
   }
 }

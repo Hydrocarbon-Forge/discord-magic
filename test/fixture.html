@@ -2,50 +2,74 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>discord-magic P1 fixture</title>
-<!-- Real P1 stylesheets (same files the loader injects) -->
+<title>discord-magic W2 fixture</title>
+<!-- Real W2 stylesheets (same files the loader injects) -->
 <link rel="stylesheet" href="../payload/css/glass.css">
 <link rel="stylesheet" href="../payload/css/foil.css">
 <style>
   body { background: #1e1f22; color: #dbdee1; font-family: sans-serif; display: flex; gap: 12px; padding: 16px; margin: 0; }
-  nav, aside, main { padding: 10px; min-width: 180px; }
-  ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
-  li { padding: 8px 10px; }
-  .msg { padding: 6px 8px; margin: 4px 0; }
-  .positionedLayer__31fc2 { margin-left: 12px; }
-  .profilePopout__a1b2c3 { background: #2b2d31; border-radius: 12px; padding: 16px; width: 220px; }
+  nav, aside, main, section { padding: 10px; min-width: 180px; }
+  [role="list"] { display: flex; flex-direction: column; gap: 6px; }
+  [role="listitem"] { padding: 8px 10px; }
+  .positionLayer__31a96, .positionedLayer__31fc2 { margin-left: 12px; }
+  /* Real card class families from the bundle (398929 chunk): */
+  .profilePopout__1add6 { background: #2b2d31; border-radius: 12px; padding: 16px; width: 220px; }
   .avatar { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #5865f2, #9b59b6); }
 </style>
 </head>
 <body>
-  <!-- surface 1: channel list -->
-  <nav aria-label="Channels">
-    <ul data-list-id="guild-channels">
-      <li data-list-item-id="guild___111"># general</li>
-      <li data-list-item-id="guild___112"># spatial-audio</li>
-    </ul>
+  <!-- surface 1: channel list. Verified: navigator id "channels"
+       (chunk 9e02a872: useNavigator({id:"channels",...})); the list container
+       carries role="list" + data-list-id="<scope>", rows carry
+       role="listitem" + data-list-item-id="<scope>___<item>"
+       (modules 837381 + 602034 in web.94f77…js). -->
+  <nav>
+    <div role="list" data-list-id="channels">
+      <div role="listitem" data-list-item-id="channels___111" tabindex="0"># general</div>
+      <div role="listitem" data-list-item-id="channels___112" tabindex="0"># spatial-audio</div>
+    </div>
   </nav>
-  <!-- surface 2: chat / message list -->
-  <main data-list-id="chat-messages" role="log" style="flex:1">
-    <div class="msg">hello world</div>
-    <div class="msg">foil + glass check</div>
-  </main>
-  <!-- surface 3: member list -->
-  <aside aria-label="Members">
-    <ul data-list-id="members">
-      <li data-list-item-id="member___221">Nathan</li>
-      <li data-list-item-id="member___222">C6</li>
-    </ul>
+  <!-- surface 2: guild nav. Verified: navigator id "guildsnav" (web bundle). -->
+  <aside>
+    <div role="list" data-list-id="guildsnav">
+      <div role="listitem" data-list-item-id="guildsnav___221" tabindex="0">Hydrocarbon</div>
+      <div role="listitem" data-list-item-id="guildsnav___222" tabindex="0">Test Guild</div>
+    </div>
   </aside>
-  <!-- F2 popout root inside a positioned layer -->
-  <div class="positionedLayer__31fc2">
-    <div class="profilePopout__a1b2c3">
+  <!-- surface 3: people list. Verified: navigator ids "people"/"people-list". -->
+  <main>
+    <div role="list" data-list-id="people-list">
+      <div role="listitem" data-list-item-id="people-list___331" tabindex="0">Nathan</div>
+      <div role="listitem" data-list-item-id="people-list___332" tabindex="0">C6</div>
+    </div>
+  </main>
+  <!-- surface 4 (fallback probe): an UNKNOWN runtime scope. Values are
+       dynamic by design, so unknown scopes must still get glass. -->
+  <section>
+    <div role="list" data-list-id="unknown-scope-7">
+      <div role="listitem" data-list-item-id="unknown-scope-7___999" tabindex="0">Late Joiner</div>
+    </div>
+  </section>
+  <!-- F2 popout root inside a REAL layer host (positionLayer__31a96 from the
+       325522 chunk) wrapping a REAL card class (profilePopout__1add6 from
+       the 398929 chunk). -->
+  <div class="positionLayer__31a96">
+    <div class="profilePopout__1add6">
       <div class="avatar"></div>
       <h3 class="username__9f8e7d">Nathan Forge</h3>
       <p>holographic foil tilt demo</p>
     </div>
   </div>
-  <!-- Real P1 payload, same order the loader evals it -->
+  <!-- Second spelling (positionedLayer__31fc2, 405714 chunk) + a card mounted
+       directly (profile-modal path: same card family, no layer ancestor). -->
+  <div class="positionedLayer__31fc2">
+    <div class="profilePopout__1add6">
+      <div class="avatar"></div>
+      <h3 class="username__abcd12">Modal Path</h3>
+      <p>card-direct wrap demo</p>
+    </div>
+  </div>
+  <!-- Real W2 payload, same order the loader evals it -->
   <script src="../payload/stores.js"></script>
   <script src="../payload/physics.js"></script>
   <script src="../payload/mod.js"></script>

@@ -68,10 +68,12 @@ function buildBootstrap(payloadDir) {
   // JSON-embed everything so the bootstrap is a single executeJavaScript
   // payload. One indirect eval (global scope) of the whole concatenated
   // source — no chunk splitting, so payload files cannot break the seam.
+  // On re-injection the page side refreshes + logs its live report first
+  // (W2 diagnosis without DevTools spelunking).
   return (
     '(function(){\n' +
     'try{\n' +
-    'if(window.__DM&&window.__DM.ready){return "discord-magic:already";}\n' +
+    'if(window.__DM&&window.__DM.ready){try{var __dmr=(typeof window.__DM.report==="function")?window.__DM.report():null;console.log("[discord-magic]",__dmr);}catch(__dme){}return "discord-magic:already";}\n' +
     'window.__DM=window.__DM||{};\n' +
     'window.__DM.css=' + JSON.stringify(css) + ';\n' +
     '(0,eval)(' + JSON.stringify(src) + ');\n' +

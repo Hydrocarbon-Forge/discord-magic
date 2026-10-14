@@ -1,88 +1,146 @@
-/* discord-magic F1 — liquid glass + jelly (P1).
+/* discord-magic F1 — liquid glass + jelly (W2: macOS "Liquid Glass" language).
  * Pure CSS overlay: classes are attached by payload/mod.js via
- * MutationObserver. Stable attribute hooks only — NO hardcoded hashed
- * class names (hashes rotate per web build). Never restructures React
- * subtrees; backdrop-filter + borders + glow only. */
+ * MutationObserver. Build-agnostic attribute hooks only — data-list-id
+ * values are runtime scopes ("channels", "guildsnav", ...) and hashes rotate
+ * per web build, so NOTHING here hardcodes a literal id or hashed class.
+ * Never restructures React subtrees; paint-only properties
+ * (background / border / box-shadow / backdrop-filter / transform / opacity).
+ *
+ * Design language — macOS 26 "Liquid Glass" (WWDC25): heavy frosted panels
+ * with visible depth, a specular top-rim light, inner glow, a soft outer
+ * refraction halo, a cool tinted (never pure-white) frost, large radii.
+ * Deliberately UNMISTAKABLE at a glance — P1 was too subtle.
+ */
 
 :root {
-  --dm-glass-blur: 18px;
-  --dm-glass-sat: 160%;
-  --dm-glass-tint: rgba(20, 24, 38, 0.42);
-  --dm-glass-edge-hi: rgba(255, 255, 255, 0.35);
-  --dm-glass-edge-lo: rgba(120, 160, 255, 0.18);
-  --dm-glass-glow: 0 8px 32px rgba(80, 120, 255, 0.16);
-  --dm-jelly-ease: cubic-bezier(0.34, 1.8, 0.5, 0.9); /* spring-ish overshoot */
+  --dm-glass-blur: 22px;
+  --dm-glass-sat: 180%;
+  --dm-glass-tint: rgba(88, 120, 200, 0.22);
+  --dm-glass-tint-deep: rgba(24, 30, 52, 0.55);
+  --dm-glass-specular: rgba(255, 255, 255, 0.55);
+  --dm-glass-edge-hi: rgba(255, 255, 255, 0.65);
+  --dm-glass-edge-lo: rgba(140, 175, 255, 0.35);
+  --dm-glass-halo: rgba(110, 150, 255, 0.28);
+  --dm-jelly-ease: cubic-bezier(0.3, 1.35, 0.4, 1); /* glassy settle, less rubbery */
 }
 
-/* ---- the three stable surfaces -------------------------------------- */
-/* 1. channel list */
-.dm-glass[data-list-id="guild-channels"],
-nav.dm-glass[aria-label="Channels"] {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.07), var(--dm-glass-tint)) !important;
-  -webkit-backdrop-filter: blur(var(--dm-glass-blur)) saturate(var(--dm-glass-sat)) !important;
-  backdrop-filter: blur(var(--dm-glass-blur)) saturate(var(--dm-glass-sat)) !important;
+/* ---- liquid-glass surfaces (any runtime list scope) ------------------- */
+/* Attribute-qualified so the rule documents its hook; .dm-glass is added
+ * by mod.js to [data-list-id] / [role="list"] nodes. */
+.dm-glass[data-list-id],
+.dm-glass[role="list"] {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 22%),
+    linear-gradient(135deg, rgba(160, 195, 255, 0.16), var(--dm-glass-tint) 55%, var(--dm-glass-tint-deep)) !important;
+  -webkit-backdrop-filter: blur(var(--dm-glass-blur)) saturate(var(--dm-glass-sat)) brightness(1.06) !important;
+  backdrop-filter: blur(var(--dm-glass-blur)) saturate(var(--dm-glass-sat)) brightness(1.06) !important;
   border: 1px solid transparent !important;
   border-image: linear-gradient(135deg, var(--dm-glass-edge-hi), var(--dm-glass-edge-lo)) 1 !important;
-  box-shadow: var(--dm-glass-glow) !important;
-  border-radius: 14px !important;
+  border-radius: 18px !important;
+  box-shadow:
+    inset 0 1px 0 var(--dm-glass-specular),
+    inset 0 -14px 30px rgba(90, 130, 255, 0.14),
+    inset 0 0 24px rgba(150, 185, 255, 0.08),
+    0 0 0 1px rgba(10, 16, 36, 0.25),
+    0 12px 48px rgba(70, 110, 255, 0.22),
+    0 2px 12px var(--dm-glass-halo) !important;
 }
 
-/* 2. chat / message list */
-.dm-glass[data-list-id="chat-messages"],
-.dm-glass[role="log"] {
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(16, 20, 34, 0.38)) !important;
-  -webkit-backdrop-filter: blur(var(--dm-glass-blur)) saturate(var(--dm-glass-sat)) !important;
-  backdrop-filter: blur(var(--dm-glass-blur)) saturate(var(--dm-glass-sat)) !important;
-  border: 1px solid transparent !important;
-  border-image: linear-gradient(160deg, var(--dm-glass-edge-hi), var(--dm-glass-edge-lo)) 1 !important;
-  box-shadow: var(--dm-glass-glow) !important;
-  border-radius: 14px !important;
-}
-
-/* 3. member list */
-.dm-glass[data-list-id="members"],
-.dm-glass[aria-label="Members"] {
-  background: linear-gradient(200deg, rgba(255, 255, 255, 0.06), var(--dm-glass-tint)) !important;
-  -webkit-backdrop-filter: blur(var(--dm-glass-blur)) saturate(var(--dm-glass-sat)) !important;
-  backdrop-filter: blur(var(--dm-glass-blur)) saturate(var(--dm-glass-sat)) !important;
-  border: 1px solid transparent !important;
-  border-image: linear-gradient(200deg, var(--dm-glass-edge-hi), var(--dm-glass-edge-lo)) 1 !important;
-  box-shadow: var(--dm-glass-glow) !important;
-  border-radius: 14px !important;
-}
-
-/* rows inside any surface: subtle glass chip */
+/* rows inside any surface: liquid chips with their own rim light */
 .dm-glass-row {
-  background: rgba(255, 255, 255, 0.04) !important;
-  -webkit-backdrop-filter: blur(10px) saturate(140%) !important;
-  backdrop-filter: blur(10px) saturate(140%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.09) !important;
-  border-radius: 10px !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 45%),
+    rgba(130, 165, 255, 0.1) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(170%) !important;
+  backdrop-filter: blur(12px) saturate(170%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  border-radius: 12px !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -6px 14px rgba(90, 130, 255, 0.1),
+    0 4px 16px rgba(70, 110, 255, 0.14) !important;
 }
 
-/* ---- jelly: squash on press, spring-ish release ---------------------- */
+/* ---- jelly: press squash with a glassy settle ------------------------- */
 .dm-jelly {
-  transition: transform 0.45s var(--dm-jelly-ease) !important;
+  transition: transform 0.4s var(--dm-jelly-ease) !important;
   transform-origin: center center !important;
   will-change: transform !important;
 }
 
 .dm-jelly:active {
-  transform: scale(0.94, 0.88) !important; /* squash */
+  transform: scale(0.965, 0.945) !important; /* dense-glass squash */
   transition-duration: 0.08s !important;
   transition-timing-function: ease-out !important;
 }
 
 /* gentle hover lift (transform/opacity only — no layout writes) */
 .dm-glass-row:hover {
-  transform: scale(1.015) !important;
+  transform: scale(1.02) !important;
 }
 
-/* accessibility: calm the jelly when the user prefers less motion */
+/* ---- proof-of-life badge (always present, draggable, dblclick hides) -- */
+.dm-proof-badge {
+  --dm-bx: 0px;
+  --dm-by: 0px;
+  position: fixed !important;
+  right: 14px !important;
+  bottom: 14px !important;
+  z-index: 2147483000 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 5px 11px 5px 8px !important;
+  font: 600 11px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif !important;
+  letter-spacing: 0.04em !important;
+  color: rgba(235, 242, 255, 0.95) !important;
+  cursor: grab !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  border-radius: 999px !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 50%),
+    linear-gradient(135deg, rgba(120, 160, 255, 0.35), rgba(30, 38, 70, 0.6)) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 6px 24px rgba(70, 110, 255, 0.35) !important;
+  transform: translate(var(--dm-bx, 0px), var(--dm-by, 0px)) !important;
+  opacity: 0.92 !important;
+  transition: opacity 0.25s ease !important;
+}
+
+.dm-proof-badge:hover {
+  opacity: 1 !important;
+}
+
+.dm-proof-badge:active {
+  cursor: grabbing !important;
+}
+
+.dm-proof-dot {
+  width: 7px !important;
+  height: 7px !important;
+  border-radius: 50% !important;
+  background: radial-gradient(circle at 35% 30%, #ffffff, #8db4ff 60%, #4a6cf7) !important;
+  box-shadow: 0 0 8px rgba(140, 180, 255, 0.9) !important;
+  opacity: 1 !important;
+}
+
+.dm-proof-badge.dm-hidden {
+  display: none !important;
+}
+
+/* accessibility: calm the jelly + badge when the user prefers less motion */
 @media (prefers-reduced-motion: reduce) {
   .dm-jelly,
   .dm-glass-row {
     transition: none !important;
     transform: none !important;
+  }
+  .dm-proof-badge {
+    transition: none !important;
   }
 }

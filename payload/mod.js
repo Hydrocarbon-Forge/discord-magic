@@ -1,4 +1,4 @@
-// discord-magic payload: mod.js (P1) — page main-world bootstrap.
+// discord-magic payload: mod.js (W2) — page main-world bootstrap.
 // Injected by loader-v1.js AFTER stores.js and physics.js (concatenated in
 // that order, one eval). Responsibilities:
 //   - install glass.css / foil.css from window.__DM.css (seeded by loader)
@@ -6,13 +6,38 @@
 //   - expose store handles (MediaEngineStore, VoiceStateStore) for later waves
 //   - attach F1 glass observers + F2 foil tilt observers (MutationObserver,
 //     SPA-safe re-attach). CSS classes only — never restructure React-owned
-//     subtrees (foil reparenting is limited to the popout ROOT element).
-// Idempotent: re-running returns early via window.__DM.ready.
+//     subtrees (foil reparenting is limited to the popout CARD element, never
+//     the positioned layer container).
+//   - write a live diagnostic report to #discord-magic-ready[data-dm-report],
+//     expose window.__DM.report(), console.log it on each (re)injection.
+//   - show a small proof-of-life badge (localStorage-hidden, dblclick hides).
+// Idempotent: re-running refreshes the report but never double-wraps.
+// Selector basis (verified vs build 637268 bundle, see VERIFY_W2.md §2):
+//   - containers: [data-list-id] (value = raw runtime scope, e.g. "channels",
+//     "guildsnav", "people-list" — NEVER a literal like "guild-channels") and
+//     [role="list"]; rows: [data-list-item-id] ("<scope>___<item>") and
+//     [role="listitem"]. Presence-based: fully build-agnostic.
+//   - layers: [class*="positionedLayer"], [class*="positionLayer"],
+//     [class*="popoutLayer"]; cards: [class*="profilePopout"],
+//     [class*="accountPopout"], [class*="userPopout"].
 ;(function () {
   window.__DM = window.__DM || {};
-  if (window.__DM.ready) return;
   var DM = window.__DM;
+  DM.__errors = DM.__errors || [];
+  if (DM.ready) {
+    // Re-injection (loader calls report() itself): refresh + log, no re-wrap.
+    try {
+      if (typeof DM.report === 'function') DM.report();
+    } catch (e) {}
+    return;
+  }
   var stores = DM.stores || null;
+
+  function noteError(where, e) {
+    try {
+      DM.__errors.push(where + ': ' + ((e && e.message) || String(e)));
+    } catch (_) {}
+  }
 
   /* 1. CSS install ------------------------------------------------------ */
   function installCss(id, text) {
@@ -21,7 +46,7 @@
     var head = document.head || document.documentElement;
     var s = document.createElement('style');
     s.id = id;
-    s.setAttribute('data-dm', 'p1');
+    s.setAttribute('data-dm', 'w2');
     s.textContent = text;
     head.appendChild(s);
   }
@@ -38,11 +63,13 @@
       DM.MediaEngineStore = stores.findMediaEngineStore();
     } catch (e) {
       DM.MediaEngineStore = null;
+      noteError('mediaEngine', e);
     }
     try {
       DM.VoiceStateStore = stores.findVoiceStateStore();
     } catch (e) {
       DM.VoiceStateStore = null;
+      noteError('voiceState', e);
     }
   }
 
@@ -53,6 +80,7 @@
       DM.classes = stores.resolveStyleMap([
         'positionedLayer',
         'positionLayer',
+        'popoutLayer',
         'profilePopout',
         'accountPopout',
         'userPopout',
@@ -64,20 +92,16 @@
       ]);
     } catch (e) {
       DM.classes = {};
+      noteError('stylemap', e);
     }
   }
 
-  /* 4. F1 — liquid glass + jelly ---------------------------------------- */
-  // Stable hooks only: data-list-id attributes, roles, aria-labels, and the
-  // [data-list-item-id] row pattern. Hashed classes are enhancement only.
-  var GLASS_SURFACES = [
-    '[data-list-id="guild-channels"]',
-    'nav[aria-label="Channels"]',
-    '[data-list-id="chat-messages"]',
-    '[role="log"]',
-    '[data-list-id="members"]',
-    '[aria-label="Members"]',
-  ];
+  /* 4. F1 — liquid glass + jelly (build-agnostic hooks) ------------------ */
+  // Verified: data-list-id values are runtime scopes ("channels",
+  // "guildsnav", "people-list", ...); data-list-item-id is
+  // "<scope>___<item>". No literal is stable, so match by PRESENCE.
+  var GLASS_SURFACES = ['[data-list-id]', '[role="list"]'];
+  var GLASS_ROWS = ['[data-list-item-id]', '[role="listitem"]'];
 
   // Guarded class-add: skip when already present so a sweep never writes
   // (a no-op set can still queue an attribute record in some DOMs and
@@ -99,9 +123,12 @@
           break;
         }
       }
-      if (el.matches('[data-list-item-id]')) {
-        addClass(el, 'dm-glass-row');
-        addClass(el, 'dm-jelly');
+      for (var j = 0; j < GLASS_ROWS.length; j++) {
+        if (el.matches(GLASS_ROWS[j])) {
+          addClass(el, 'dm-glass-row');
+          addClass(el, 'dm-jelly');
+          break;
+        }
       }
     } catch (e) {}
   }
@@ -110,42 +137,66 @@
     var scope = root && root.querySelectorAll ? root : document;
     // The added node itself may BE the surface/row (not just a container).
     markGlassSelf(scope);
-    var i, els;
+    var i, k, els;
     for (i = 0; i < GLASS_SURFACES.length; i++) {
       try {
         els = scope.querySelectorAll(GLASS_SURFACES[i] + ':not(.dm-glass)');
       } catch (e) {
         continue;
       }
-      for (var k = 0; k < els.length; k++) addClass(els[k], 'dm-glass');
+      for (k = 0; k < els.length; k++) addClass(els[k], 'dm-glass');
     }
     // Rows: the stable member/voice/channel row hook.
-    try {
-      els = scope.querySelectorAll('[data-list-item-id]:not(.dm-glass-row)');
-    } catch (e) {
-      els = [];
-    }
-    for (var j = 0; j < els.length; j++) {
-      addClass(els[j], 'dm-glass-row');
-      addClass(els[j], 'dm-jelly');
+    for (i = 0; i < GLASS_ROWS.length; i++) {
+      try {
+        els = scope.querySelectorAll(GLASS_ROWS[i] + ':not(.dm-glass-row)');
+      } catch (e) {
+        continue;
+      }
+      for (k = 0; k < els.length; k++) {
+        addClass(els[k], 'dm-glass-row');
+        addClass(els[k], 'dm-jelly');
+      }
     }
   }
 
   /* 5. F2 — holographic foil 3D-tilt cards ------------------------------- */
   var MAX_TILT_DEG = 12;
+  var LAYER_SELECTORS = [
+    '[class*="positionedLayer"]',
+    '[class*="positionLayer"]',
+    '[class*="popoutLayer"]',
+  ];
+  var CARD_SELECTORS = [
+    '[class*="profilePopout"]',
+    '[class*="accountPopout"]',
+    '[class*="userPopout"]',
+  ];
 
   function isLayerNode(el) {
     if (!el || !el.className || typeof el.className !== 'string') return false;
     return (
       el.className.indexOf('positionedLayer') !== -1 ||
-      el.className.indexOf('positionLayer') !== -1
+      el.className.indexOf('positionLayer') !== -1 ||
+      el.className.indexOf('popoutLayer') !== -1
     );
   }
 
-  // Wrap the popout ROOT in stage > tilt (+ sheen overlay). The original
+  function isCardNode(el) {
+    if (!el || !el.className || typeof el.className !== 'string') return false;
+    return (
+      el.className.indexOf('profilePopout') !== -1 ||
+      el.className.indexOf('accountPopout') !== -1 ||
+      el.className.indexOf('userPopout') !== -1
+    );
+  }
+
+  // Wrap the popout CARD in stage > tilt (+ sheen overlay). The original
   // node's attributes/children are untouched; only reparented one level.
+  // Never wraps the layer container itself (React-positioned).
   function wrapPopout(root) {
     if (!root || !root.parentNode) return false;
+    if (isLayerNode(root)) return false; // card required, never the layer
     if (
       root.parentNode.classList &&
       root.parentNode.classList.contains('dm-foil-tilt')
@@ -215,35 +266,70 @@
     return true;
   }
 
+  function collectCandidates(scope, out) {
+    var i;
+    // The added node itself may BE the card (modal path) or the layer
+    // (hover path: wrap its card child, never the layer container).
+    if (scope !== document) {
+      if (isCardNode(scope)) {
+        out.push(scope);
+      } else if (isLayerNode(scope) && scope.firstElementChild) {
+        out.push(scope.firstElementChild);
+      }
+    }
+    var els;
+    for (i = 0; i < LAYER_SELECTORS.length; i++) {
+      try {
+        els = scope.querySelectorAll(LAYER_SELECTORS[i]);
+      } catch (e) {
+        continue;
+      }
+      for (var k = 0; k < els.length; k++) {
+        // Only wrap layers that actually host a popout card child.
+        if (els[k].firstElementChild) out.push(els[k].firstElementChild);
+      }
+    }
+    // Card-direct path: hover popouts AND profile modals render the same
+    // profilePopout-family card; catch cards mounted outside a layer too.
+    for (i = 0; i < CARD_SELECTORS.length; i++) {
+      try {
+        els = scope.querySelectorAll(CARD_SELECTORS[i]);
+      } catch (e) {
+        continue;
+      }
+      for (var j = 0; j < els.length; j++) out.push(els[j]);
+    }
+  }
+
   function scanLayers(root) {
     var scope = root && root.querySelectorAll ? root : document;
     var candidates = [];
-    // The added node itself may BE the layer (wrap its card child, never
-    // the layer container — the layer is React-positioned).
-    if (scope !== document && isLayerNode(scope) && scope.firstElementChild) {
-      candidates.push(scope.firstElementChild);
-    }
-    var els;
     try {
-      els = scope.querySelectorAll('[class*="positionedLayer"],[class*="positionLayer"]');
+      collectCandidates(scope, candidates);
     } catch (e) {
-      els = [];
+      noteError('scanLayers', e);
     }
-    for (var i = 0; i < els.length; i++) {
-      // Only wrap layers that actually host a popout card child.
-      if (els[i].firstElementChild) candidates.push(els[i].firstElementChild);
+    for (var j = 0; j < candidates.length; j++) {
+      try {
+        wrapPopout(candidates[j]);
+      } catch (e) {
+        noteError('wrapPopout', e);
+      }
     }
-    for (var j = 0; j < candidates.length; j++) wrapPopout(candidates[j]);
   }
 
   /* 6. Observers (SPA-safe re-attach) ------------------------------------ */
   function sweep(target) {
     try {
       applyGlass(target);
-    } catch (e) {}
+    } catch (e) {
+      noteError('applyGlass', e);
+    }
     try {
       scanLayers(target);
-    } catch (e) {}
+    } catch (e) {
+      noteError('scanLayers', e);
+    }
   }
 
   function startObservers() {
@@ -275,26 +361,165 @@
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['class', 'data-list-id'],
+      attributeFilter: ['class', 'data-list-id', 'data-list-item-id'],
     });
     DM.__observer = obs;
   }
 
-  /* 7. Marker node -------------------------------------------------------- */
-  function markReady() {
-    if (document.getElementById('discord-magic-ready')) return;
-    var el = document.createElement('div');
-    el.id = 'discord-magic-ready';
-    el.setAttribute('data-dm-version', 'p1');
-    el.setAttribute('style', 'display:none!important');
-    (document.body || document.documentElement).appendChild(el);
+  /* 7. Live diagnostic report -------------------------------------------- */
+  function countSel(sel) {
+    try {
+      return document.querySelectorAll(sel).length;
+    } catch (e) {
+      return 0;
+    }
   }
 
-  DM.version = 'p1';
-  if (document.body) {
+  function buildReport() {
+    var surfacesMatched = {};
+    for (var i = 0; i < GLASS_SURFACES.length; i++) {
+      surfacesMatched[GLASS_SURFACES[i]] = countSel(
+        GLASS_SURFACES[i] + '.dm-glass'
+      );
+    }
+    var layersFound = [];
+    try {
+      var layerNodes = document.querySelectorAll('[class*="Layer"]');
+      var seen = {};
+      for (var k = 0; k < layerNodes.length; k++) {
+        var cls = layerNodes[k].className;
+        if (typeof cls !== 'string') continue;
+        var parts = cls.split(/\s+/);
+        for (var p = 0; p < parts.length; p++) {
+          if (parts[p].indexOf('Layer') !== -1 && !seen[parts[p]]) {
+            seen[parts[p]] = true;
+            layersFound.push(parts[p]);
+          }
+        }
+        if (layersFound.length >= 12) break;
+      }
+    } catch (e) {
+      noteError('layersFound', e);
+    }
+    return {
+      v: 'w2',
+      ts: new Date().toISOString(),
+      ready: !!DM.ready,
+      surfacesMatched: surfacesMatched,
+      rowsMatched: countSel('[data-list-item-id].dm-glass-row'),
+      layersFound: layersFound,
+      cssInstalled: {
+        glass: !!document.getElementById('dm-glass-style'),
+        foil: !!document.getElementById('dm-foil-style'),
+      },
+      storeHandles: {
+        mediaEngine: !!DM.MediaEngineStore,
+        voiceState: !!DM.VoiceStateStore,
+      },
+      errors: DM.__errors.slice(-8),
+    };
+  }
+
+  // Fresh report on every call (live counts), mirrored to the marker node.
+  DM.report = function () {
+    var rep = buildReport();
+    try {
+      var el = document.getElementById('discord-magic-ready');
+      if (el) el.setAttribute('data-dm-report', JSON.stringify(rep));
+    } catch (e) {}
+    return rep;
+  };
+
+  /* 8. Marker node + proof-of-life badge ---------------------------------- */
+  function markReady() {
+    var el = document.getElementById('discord-magic-ready');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'discord-magic-ready';
+      el.setAttribute('data-dm-version', 'w2');
+      el.setAttribute('style', 'display:none!important');
+      (document.body || document.documentElement).appendChild(el);
+    } else {
+      el.setAttribute('data-dm-version', 'w2');
+    }
+    DM.report(); // mirror initial report to the marker
+  }
+
+  // Tiny always-present badge: proves the mod is active at a glance.
+  // Draggable (transform-only), double-click hides (localStorage persists).
+  function ensureBadge() {
+    try {
+      if (document.getElementById('dm-proof-badge')) return;
+      var hidden = false;
+      try {
+        hidden =
+          window.localStorage &&
+          window.localStorage.getItem('dm-badge-hidden') === '1';
+      } catch (e) {}
+      if (hidden) return;
+      var b = document.createElement('div');
+      b.id = 'dm-proof-badge';
+      b.className = 'dm-proof-badge';
+      b.setAttribute('title', 'discord-magic active — drag to move, double-click to hide');
+      var dot = document.createElement('span');
+      dot.className = 'dm-proof-dot';
+      dot.setAttribute('aria-hidden', 'true');
+      b.appendChild(dot);
+      var label = document.createElement('span');
+      label.textContent = 'liquid';
+      b.appendChild(label);
+      (document.body || document.documentElement).appendChild(b);
+      var bx = 0,
+        by = 0,
+        dragging = false,
+        sx = 0,
+        sy = 0;
+      b.addEventListener('pointerdown', function (ev) {
+        dragging = true;
+        sx = ev.clientX - bx;
+        sy = ev.clientY - by;
+        try {
+          b.setPointerCapture(ev.pointerId);
+        } catch (e) {}
+      });
+      b.addEventListener('pointermove', function (ev) {
+        if (!dragging) return;
+        bx = ev.clientX - sx;
+        by = ev.clientY - sy;
+        b.style.setProperty('--dm-bx', bx.toFixed(0) + 'px');
+        b.style.setProperty('--dm-by', by.toFixed(0) + 'px');
+      });
+      function stopDrag() {
+        dragging = false;
+      }
+      b.addEventListener('pointerup', stopDrag);
+      b.addEventListener('pointercancel', stopDrag);
+      b.addEventListener('dblclick', function () {
+        try {
+          if (window.localStorage)
+            window.localStorage.setItem('dm-badge-hidden', '1');
+        } catch (e) {}
+        addClass(b, 'dm-hidden');
+      });
+    } catch (e) {
+      noteError('badge', e);
+    }
+  }
+
+  DM.version = 'w2';
+  function boot() {
     startObservers();
     markReady();
+    ensureBadge();
     DM.ready = true;
+    // Final report with ready:true, mirrored to the marker AND the console —
+    // this is the live proof the user pastes back if anything looks off.
+    try {
+      console.log('[discord-magic]', DM.report());
+    } catch (e) {}
+  }
+  if (document.body) {
+    boot();
   } else {
     // Injected pre-body: wait for the root, then start.
     var bootObs = new MutationObserver(function () {
@@ -302,9 +527,7 @@
         try {
           bootObs.disconnect();
         } catch (e) {}
-        startObservers();
-        markReady();
-        DM.ready = true;
+        boot();
       }
     });
     bootObs.observe(document.documentElement, { childList: true, subtree: true });
