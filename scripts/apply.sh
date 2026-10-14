@@ -45,23 +45,6 @@ command -v npx >/dev/null || { echo "apply.sh: npx required (for asar)" >&2; exi
 
 mkdir -p "$BACKUP_DIR"
 TS="$(date +%Y%m%d-%H%M%S)"
-BACKUP="$BACKUP_DIR/core.asar.$TS"
-echo "[apply] backing up $CORE_ASAR -> $BACKUP"
-cp -a "$CORE_ASAR" "$BACKUP"
-cmp -s "$CORE_ASAR" "$BACKUP" || { echo "[apply] backup MISMATCH (not byte-for-byte)" >&2; exit 1; }
-echo "[apply] backup verified byte-for-byte, sha256: $(sha256sum "$BACKUP" | cut -d' ' -f1)"
-echo "[apply] pre-patch sha256:  $(sha256sum "$CORE_ASAR" | cut -d' ' -f1)"
-
-if [ "${SKIP_SIDECAR_INSTALL:-0}" != "1" ]; then
-  echo "[apply] installing sidecar -> $SIDECAR_DIR"
-  mkdir -p "$SIDECAR_DIR/payload/css"
-  cp -a "$REPO_DIR/loader/loader-v1.js" "$SIDECAR_DIR/loader-v1.js"
-  cp -a "$REPO_DIR/payload/mod.js" "$REPO_DIR/payload/stores.js" "$REPO_DIR/payload/physics.js" "$SIDECAR_DIR/payload/"
-  cp -a "$REPO_DIR/payload/css/glass.css" "$REPO_DIR/payload/css/foil.css" "$SIDECAR_DIR/payload/css/"
-  echo "[apply] sidecar installed."
-else
-  echo "[apply] SKIP_SIDECAR_INSTALL=1, sidecar copy skipped."
-fi
 
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/dm-apply.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
@@ -87,6 +70,25 @@ if [ "$PRE_MARKER_N" -ge 1 ]; then
   fi
 fi
 [ "$PRE_ANCHOR_N" -eq 1 ] || { echo "[apply] anchor must appear EXACTLY once (found $PRE_ANCHOR_N). Refusing." >&2; exit 1; }
+
+# Byte-for-byte backup AFTER the read-only checks, BEFORE any modification.
+BACKUP="$BACKUP_DIR/core.asar.$TS"
+echo "[apply] backing up $CORE_ASAR -> $BACKUP"
+cp -a "$CORE_ASAR" "$BACKUP"
+cmp -s "$CORE_ASAR" "$BACKUP" || { echo "[apply] backup MISMATCH (not byte-for-byte)" >&2; exit 1; }
+echo "[apply] backup verified byte-for-byte, sha256: $(sha256sum "$BACKUP" | cut -d' ' -f1)"
+echo "[apply] pre-patch sha256:  $(sha256sum "$CORE_ASAR" | cut -d' ' -f1)"
+
+if [ "${SKIP_SIDECAR_INSTALL:-0}" != "1" ]; then
+  echo "[apply] installing sidecar -> $SIDECAR_DIR"
+  mkdir -p "$SIDECAR_DIR/payload/css"
+  cp -a "$REPO_DIR/loader/loader-v1.js" "$SIDECAR_DIR/loader-v1.js"
+  cp -a "$REPO_DIR/payload/mod.js" "$REPO_DIR/payload/stores.js" "$REPO_DIR/payload/physics.js" "$SIDECAR_DIR/payload/"
+  cp -a "$REPO_DIR/payload/css/glass.css" "$REPO_DIR/payload/css/foil.css" "$SIDECAR_DIR/payload/css/"
+  echo "[apply] sidecar installed."
+else
+  echo "[apply] SKIP_SIDECAR_INSTALL=1, sidecar copy skipped."
+fi
 
 HOOK='/*discord-magic-loader-v1*/;try{require(process.env.DISCORD_MAGIC_LOADER||(function(){try{return require("os").homedir()}catch(e){return process.env.HOME||"/tmp"}})()+"/.config/discord-magic/loader-v1.js").attach(mainWindow);}catch(e){console.error("[discord-magic] loader attach failed:",e&&e.message||e);}'
 export ANCHOR HOOK BUNDLE
