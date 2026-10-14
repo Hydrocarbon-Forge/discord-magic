@@ -71,8 +71,8 @@
   background-position: var(--dm-foil-x, 50%) var(--dm-foil-y, 50%) !important;
   background-size: 280% 280% !important;
   mix-blend-mode: color-dodge !important;
-  opacity: 0.65 !important;
-  filter: saturate(170%) brightness(1.15) !important;
+  opacity: 0.5 !important;
+  filter: saturate(160%) brightness(1.08) !important;
   animation: dm-foil-spin 9s linear infinite !important;
 }
 
